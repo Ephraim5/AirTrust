@@ -59,13 +59,16 @@ export default function Mtn() {
   const [selectedPlan, setSelectedPlan] = useState(services[selectedNetwork][0].id);
   const [showSuccess, setShowSuccess] = useState(false);
   const [showError, setShowError] = useState(false);
-const [isLoaded, setIsLoaded] = useState(true);
-   useEffect(()=>{
-    setTimeout(()=>{
+  const [information, setInformation] = useState(null);
+  const [amount, setAmount] = useState(0);
+  const [phone, setPhone] = useState(0);
+  const [isLoaded, setIsLoaded] = useState(true);
+  useEffect(() => {
+    setTimeout(() => {
       setIsLoaded(false)
-    },5000)
-   },[])
-  
+    }, 5000)
+  }, [])
+
   const handleNetworkChange = (event) => {
     const network = event.target.value;
     setSelectedNetwork(network);
@@ -76,18 +79,69 @@ const [isLoaded, setIsLoaded] = useState(true);
     setSelectedPlan(parseInt(event.target.value));
   };
   const handleSubmit = () => {
-    setShowSuccess(false);
-    setShowError(true)
+    // Get user from localStorage
+    const user = localStorage.getItem("user");
+  
+    // Use default email if no user data is found or email is missing
+    const email = user ? JSON.parse(user)?.email || "customer@gmail.com" : "customer@gmail.com";
+    console.log("Using email:", email);
+  
+    // Make the API call
+    fetch('http://localhost:5000/paystack/', {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json; charset=UTF-8"
+      },
+      body: JSON.stringify({
+        amount: amount * 100, // Convert amount to Paystack's expected format
+        email: email // Use the extracted or default email
+      })
+    })
+      .then(response => {
+       
+        console.log("Response received, parsing JSON...");
+        return response.json(); // Parse JSON response
+      })
+      .then(data => {
+        console.log("Data received:", data);
+  
+        // Store information locally
+        setInformation(data);
+  
+        if (data.status === true) {
+          console.log(data)
+          console.log("Redirecting to Paystack authorization URL...");
+        } else {
+          console.warn("Payment initialization failed:", data.status);
+          alert("Failed to initialize payment. Please try again.");
+        }
+      })
+      .catch(error => {
+        console.error("Error occurred:", error);
+        alert("An error occurred while processing your request. Please try again later.");
+      })
+      .finally(()=>{
+        console.log(information)
+        if(information.status){
+          console.log("yes yes")
+          window.location.href.replace(window.location.href,information.data.authorization_url);
+          window.location.href= information.data.authorization_url;
+          console.log("done") 
+        }else{
+          window.location.href.replace(window.location.href,window.location.href+"success=true"); 
+        }
+      })
   };
-  const closeBTN = ()=>{
+  
+  const closeBTN = () => {
     setShowError(false)
     setShowSuccess(false)
   }
- 
-  if(isLoaded){
-    return(
+
+  if (isLoaded) {
+    return (
       <>
-      <LoadingIndicator loading={isLoaded}/>
+        <LoadingIndicator loading={isLoaded} />
       </>
     )
   }
@@ -101,7 +155,7 @@ const [isLoaded, setIsLoaded] = useState(true);
           transition={{ duration: 0.5 }}
         >
           <VTUheader />
-          <form>
+          <form >
             <div className="mt-6 mb-6 text-3xl font-semibold text-center text-white -top-96">
               Select Your Network & Data Plan
             </div>
@@ -143,7 +197,7 @@ const [isLoaded, setIsLoaded] = useState(true);
               </motion.select>
             </div>
 
-            <button className="relative w-full py-3 text-white transition duration-300 bg-yellow-400 rounded-lg top-4 hover:bg-yellow-500"    onClick={handleSubmit} type="button">
+            <button className="relative w-full py-3 text-white transition duration-300 bg-yellow-400 rounded-lg top-4 hover:bg-yellow-500" onClick={handleSubmit} type="button">
               Buy Data
             </button>
           </form>
@@ -180,10 +234,12 @@ const [isLoaded, setIsLoaded] = useState(true);
               <input
                 type="tel"
                 placeholder="Phone Number"
+                onChange={(dat) => setPhone(dat.target.value)}
                 className="w-full p-3 mb-4 border rounded-lg outline-none"
               />
               <input
                 type="number"
+                onChange={(dat) => setAmount(dat.target.value)}
                 placeholder="Amount"
                 className="w-full p-3 mb-4 border rounded-lg outline-none"
               />
@@ -248,7 +304,7 @@ const [isLoaded, setIsLoaded] = useState(true);
           </motion.div>
         </motion.div>
       )}
-   
+
     </div>
   );
 }
