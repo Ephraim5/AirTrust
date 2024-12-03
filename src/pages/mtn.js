@@ -87,7 +87,7 @@ export default function Mtn() {
     console.log("Using email:", email);
   
     // Make the API call
-    fetch('http://localhost:5000/paystack/', {
+    fetch('https://airtrustbackend.onrender.com/paystack/', {
       method: "POST",
       headers: {
         "Content-Type": "application/json; charset=UTF-8"
