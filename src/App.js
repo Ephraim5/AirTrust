@@ -31,10 +31,10 @@ function App() {
         <Route path="/auth" element={<Auth />} />
         <Route path="/forgot" element={<ForgotPassword />} />
         <Route path="/about" element={<div>About Page</div>} />
-        <Route path="/MTN" element={<Mtn />} />
-        <Route path="/Glo" element={<Glo />} />
+        <Route path="/mtn" element={<Mtn />} />
+        <Route path="/glo" element={<Glo />} />
         <Route path="/9mobile" element={<Mobile9 />} />
-        <Route path="/Airtel" element={<Airtel />} />
+        <Route path="/airtel" element={<Airtel />} />
       </Routes>
 
     </Router>
