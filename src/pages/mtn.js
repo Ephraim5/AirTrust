@@ -63,6 +63,8 @@ export default function Mtn() {
   const [amount, setAmount] = useState(0);
   const [phone, setPhone] = useState(0);
   const [isLoaded, setIsLoaded] = useState(true);
+  const [isAirtime, setIsAirtime] = useState(false);
+  const [lastTransaction,setLastTransaction] =useState({})
   useEffect(() => {
     setTimeout(() => {
       setIsLoaded(false)
@@ -78,233 +80,267 @@ export default function Mtn() {
   const handlePlanChange = (event) => {
     setSelectedPlan(parseInt(event.target.value));
   };
-  const handleSubmit = () => {
-    // Get user from localStorage
-    const user = localStorage.getItem("user");
-  
-    // Use default email if no user data is found or email is missing
-    const email = user ? JSON.parse(user)?.email || "customer@gmail.com" : "customer@gmail.com";
-    console.log("Using email:", email);
-  
-    // Make the API call
-    fetch('http://localhost:5000/paystack/', {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json; charset=UTF-8"
-      },
-      body: JSON.stringify({
-        amount: amount * 100, // Convert amount to Paystack's expected format
-        email: email // Use the extracted or default email
-      })
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const reference = urlParams.get('reference');
+    const status = urlParams.get('status');
+    if (reference == undefined || reference == null || !reference) {
+      async function getDataVerify() {
+        const response = await axios.get(`https://api.paystack.co/transaction/verify/${reference}`, {
+          headers: {
+            Authorization: `Bearer sk_test_bc93e86b9ed69d83864fbc06b94a672e1316767c`,
+            'Content-Type': 'application/json',
+
+          },
+        });
+
+        const data = response.data;
+           setLastTransaction({...data})
+          if(status== true || status=="true"){
+                setShowSuccess(true)
+                setShowError(false)
+          }else{
+            setShowSuccess(false)
+            setShowError(true)
+          }
+
+    }
+    getDataVerify()
+
+
+  }else {
+    return;
+  }
+  }, [])
+
+
+const handleSubmit = (props) => {
+  const user = localStorage.getItem("user");
+
+  const email = user ? JSON.parse(user)?.email || "customer@gmail.com" : "customer@gmail.com";
+  console.log("Using email:", email);
+
+  const callbackUrl = "https://airtrustbackend.onrender.com/payment-success"; // Replace with your actual callback URL
+
+  fetch('https://airtrustbackend.onrender.com/paystack/', { // Make sure to include the correct server URL
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json; charset=UTF-8"
+    },
+    body: JSON.stringify({
+      amount: amount * 100, // Convert to kobo
+      email: email,
+      callback_url: callbackUrl, // Include the callback URL here
     })
-      .then(response => {
-       
-        console.log("Response received, parsing JSON...");
-        return response.json(); // Parse JSON response
-      })
-      .then(data => {
-        console.log("Data received:", data);
-  
-        // Store information locally
-        setInformation(data);
-  
-        if (data.status === true) {
-          console.log(data)
-          console.log("Redirecting to Paystack authorization URL...");
-        } else {
-          console.warn("Payment initialization failed:", data.status);
-          alert("Failed to initialize payment. Please try again.");
-        }
-      })
-      .catch(error => {
-        console.error("Error occurred:", error);
-        alert("An error occurred while processing your request. Please try again later.");
-      })
-      .finally(()=>{
-        console.log(information)
-        if(information.status){
-          console.log("yes yes")
-          window.location.href.replace(window.location.href,information.data.authorization_url);
-          window.location.href= information.data.authorization_url;
-          console.log("done") 
-        }else{
-          window.location.href.replace(window.location.href,window.location.href+"success=true"); 
-        }
-      })
-  };
-  
-  const closeBTN = () => {
-    setShowError(false)
-    setShowSuccess(false)
-  }
+  })
+    .then(response => {
 
-  if (isLoaded) {
-    return (
-      <>
-        <LoadingIndicator loading={isLoaded} />
-      </>
-    )
-  }
+      console.log("Response received, parsing JSON...");
+      return response.json(); // Parse JSON response
+    })
+    .then(data => {
+      console.log("Data received:", data);
+
+      // Store information locally
+      setInformation({ ...data, isItAirtime: isAirtime });
+
+      if (data.status === true) {
+        console.log(data)
+        console.log("Redirecting to Paystack authorization URL...");
+      } else {
+        console.warn("Payment initialization failed:", data.status);
+        alert("Failed to initialize payment. Please try again.");
+      }
+    })
+    .catch(error => {
+      console.error("Error occurred:", error);
+      alert("An error occurred while processing your request. Please try again later.");
+    })
+    .finally(() => {
+      console.log({ ...information, isItAirtime: isAirtime })
+      if (information.status) {
+        console.log("yes yes")
+        window.location.href.replace(window.location.href, information.data.authorization_url);
+        window.location.href = information.data.authorization_url;
+        console.log("done") //ll
+      } else {
+        window.location.href.replace(window.location.href, window.location.href + "?success=false");
+      }
+    })
+};
+
+const closeBTN = () => {
+  setShowError(false)
+  setShowSuccess(false)
+}
+
+if (isLoaded) {
   return (
-    <div className="flex items-center justify-center h-full overflow-hidden bg-gradient-to-r from-slate-700 to-slate-800">
-      <div className='relative flex flex-row flex-wrap w-full h-full gap-40 pt-32 pb-20 top-10 lg:left-60'>
-        <motion.div
-          className="w-full max-w-lg p-10 rounded-lg shadow-xl bg-slate-800"
-          initial={{ opacity: 0, y: -50 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-        >
-          <VTUheader />
-          <form >
-            <div className="mt-6 mb-6 text-3xl font-semibold text-center text-white -top-96">
-              Select Your Network & Data Plan
-            </div>
-            <div className="space-y-5">
-              {/* Network Select */}
-              <motion.select
-                value={selectedNetwork}
-                onChange={handleNetworkChange}
-                className="w-full p-4 text-lg transition duration-300 ease-in-out rounded-md outline-none"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.2 }}
-              >
-                {Object.keys(services).map((network) => (
-                  <option className='rounded-md' key={network} value={network}>
-                    {network}
-                  </option>
-                ))}
-              </motion.select>
-              <input
-                type="tel"
-                placeholder="Phone Number"
-                className="w-full p-3 mb-4 border rounded-lg outline-none"
-              />
-              {/* Plan Select */}
-              <motion.select
-                value={selectedPlan}
-                onChange={handlePlanChange}
-                className="w-full p-4 text-lg transition duration-300 ease-in-out rounded-md focus:outline-none"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.4 }}
-              >
-                {services[selectedNetwork].map((plan) => (
-                  <option key={plan.id} value={plan.id}>
-                    {`${plan.plan} = N${plan.price} for (${plan.validity})`}
-                  </option>
-                ))}
-              </motion.select>
-            </div>
+    <>
+      <LoadingIndicator loading={isLoaded} />
+    </>
+  )
+}
+return (
+  <div className="flex items-center justify-center h-full overflow-hidden bg-gradient-to-r from-slate-700 to-slate-800">
+    <div className='relative flex flex-row flex-wrap w-full h-full gap-40 pt-32 pb-20 top-10 lg:left-60'>
+      <motion.div
+        className="w-full max-w-lg p-10 rounded-lg shadow-xl bg-slate-800"
+        initial={{ opacity: 0, y: -50 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+      >
+        <VTUheader />
+        <form >
+          <div className="mt-6 mb-6 text-3xl font-semibold text-center text-white -top-96">
+            Select Your Network & Data Plan
+          </div>
+          <div className="space-y-5">
+            {/* Network Select */}
+            <motion.select
+              value={selectedNetwork}
+              onChange={handleNetworkChange}
+              className="w-full p-4 text-lg transition duration-300 ease-in-out rounded-md outline-none"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.2 }}
+            >
+              {Object.keys(services).map((network) => (
+                <option className='rounded-md' key={network} value={network}>
+                  {network}
+                </option>
+              ))}
+            </motion.select>
+            <input
+              type="tel"
+              placeholder="Phone Number"
+              className="w-full p-3 mb-4 border rounded-lg outline-none"
+            />
+            {/* Plan Select */}
+            <motion.select
+              value={selectedPlan}
+              onChange={handlePlanChange}
+              className="w-full p-4 text-lg transition duration-300 ease-in-out rounded-md focus:outline-none"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.4 }}
+            >
+              {services[selectedNetwork].map((plan) => (
+                <option key={plan.id} value={plan.id}>
+                  {`${plan.plan} = N${plan.price} for (${plan.validity})`}
+                </option>
+              ))}
+            </motion.select>
+          </div>
 
-            <button className="relative w-full py-3 text-white transition duration-300 bg-yellow-400 rounded-lg top-4 hover:bg-yellow-500" onClick={handleSubmit} type="button">
-              Buy Data
-            </button>
-          </form>
-          {/* Display Data Plans */}
+          <button className="relative w-full py-3 text-white transition duration-300 bg-yellow-400 rounded-lg top-4 hover:bg-yellow-500" onClick={handleSubmit("data")} type="button">
+            Buy Data
+          </button>
+        </form>
+        {/* Display Data Plans */}
 
-        </motion.div>
-        <motion.div
-          className="w-full max-w-lg p-10 rounded-lg shadow-xl bg-slate-800"
-          initial={{ opacity: 0, y: -50 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-        >
-          <VTUheader />
-          <form>
-            <div className="mt-6 mb-6 text-3xl font-semibold text-center text-white -top-96">
-              Select Your Network & Airtime Amount
-            </div>
-            <div className="space-y-5">
-              {/* Network Select */}
-              <motion.select
-                value={selectedNetwork}
-                onChange={handleNetworkChange}
-                className="w-full p-4 text-lg transition duration-300 ease-in-out rounded-md outline-none"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.2 }}
-              >
-                {Object.keys(services).map((network) => (
-                  <option className='rounded-md' key={network} value={network}>
-                    {network}
-                  </option>
-                ))}
-              </motion.select>
-              <input
-                type="tel"
-                placeholder="Phone Number"
-                onChange={(dat) => setPhone(dat.target.value)}
-                className="w-full p-3 mb-4 border rounded-lg outline-none"
-              />
-              <input
-                type="number"
-                onChange={(dat) => setAmount(dat.target.value)}
-                placeholder="Amount"
-                className="w-full p-3 mb-4 border rounded-lg outline-none"
-              />
+      </motion.div>
+      <motion.div
+        className="w-full max-w-lg p-10 rounded-lg shadow-xl bg-slate-800"
+        initial={{ opacity: 0, y: -50 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+      >
+        <VTUheader />
+        <form>
+          <div className="mt-6 mb-6 text-3xl font-semibold text-center text-white -top-96">
+            Select Your Network & Airtime Amount
+          </div>
+          <div className="space-y-5">
+            {/* Network Select */}
+            <motion.select
+              value={selectedNetwork}
+              onChange={handleNetworkChange}
+              className="w-full p-4 text-lg transition duration-300 ease-in-out rounded-md outline-none"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.2 }}
+            >
+              {Object.keys(services).map((network) => (
+                <option className='rounded-md' key={network} value={network}>
+                  {network}
+                </option>
+              ))}
+            </motion.select>
+            <input
+              type="tel"
+              placeholder="Phone Number"
+              onChange={(dat) => setPhone(dat.target.value)}
+              className="w-full p-3 mb-4 border rounded-lg outline-none"
+            />
+            <input
+              type="number"
+              onChange={(dat) => setAmount(dat.target.value)}
+              placeholder="Amount"
+              className="w-full p-3 mb-4 border rounded-lg outline-none"
+            />
 
-            </div>
+          </div>
 
-            <button onClick={handleSubmit}
-              className="relative w-full py-3 text-white transition duration-300 bg-yellow-400 rounded-lg top-4 hover:bg-yellow-500" type="button">
-              Buy Airtime
-            </button>
-          </form>
-          {/* Display Data Plans */}
+          <button onClick={handleSubmit("airtime")}
+            className="relative w-full py-3 text-white transition duration-300 bg-yellow-400 rounded-lg top-4 hover:bg-yellow-500" type="button">
+            Buy Airtime
+          </button>
+        </form>
+        {/* Display Data Plans */}
 
-        </motion.div>
-      </div>
-      {/* Success Popup */}
-      {showSuccess && (
-        <motion.div
-          initial={{ scale: 0.5, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          exit={{ scale: 0, opacity: 0 }}
-          transition={{ duration: 0.5 }}
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50"
-        >
-          <motion.div
-            className="p-8 text-center rounded-lg shadow-lg bg-slate-700"
-            initial={{ y: -50 }}
-            animate={{ y: 0 }}
-            transition={{ duration: 0.3 }}
-          >
-            <div className="mb-4 text-4xl text-slate-500">✔</div>
-            <h2 className="mb-2 text-2xl font-semibold text-white">Success</h2>
-            <p className="text-white">Your data purchase was successful!</p>
-            <button onClick={closeBTN}
-              className="relative w-full py-3 text-white transition duration-300 bg-yellow-400 rounded-lg top-4 hover:bg-yellow-500" type="button" >
-              Okay
-            </button>
-          </motion.div>
-        </motion.div>
-      )}
-      {showError && (
-        <motion.div
-          initial={{ scale: 0.5, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          exit={{ scale: 0, opacity: 0 }}
-          transition={{ duration: 0.5 }}
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50"
-        >
-          <motion.div
-            className="p-8 text-center rounded-lg shadow-lg bg-slate-700"
-            initial={{ y: -50 }}
-            animate={{ y: 0 }}
-            transition={{ duration: 0.3 }}
-          >
-            <div className="mb-4 text-4xl text-slate-500">×</div>
-            <h2 className="mb-2 text-2xl font-semibold text-white">Failed</h2>
-            <p className="text-white">Your data purchase was not successful!</p>
-            <button onClick={closeBTN}
-              className="relative w-full py-3 text-white transition duration-300 bg-yellow-400 rounded-lg top-4 hover:bg-yellow-500" type="button">
-              Okay
-            </button>
-          </motion.div>
-        </motion.div>
-      )}
-
+      </motion.div>
     </div>
-  );
+    {/* Success Popup */}
+    {showSuccess && (
+      <motion.div
+        initial={{ scale: 0.5, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        exit={{ scale: 0, opacity: 0 }}
+        transition={{ duration: 0.5 }}
+        className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50"
+      >
+        <motion.div
+          className="p-8 text-center rounded-lg shadow-lg bg-slate-700"
+          initial={{ y: -50 }}
+          animate={{ y: 0 }}
+          transition={{ duration: 0.3 }}
+        >
+          <div className="mb-4 text-4xl text-slate-500">✔</div>
+          <h2 className="mb-2 text-2xl font-semibold text-white">Success</h2>
+          <p className="text-white">Your data purchase was successful!</p>
+          <button onClick={closeBTN}
+            className="relative w-full py-3 text-white transition duration-300 bg-yellow-400 rounded-lg top-4 hover:bg-yellow-500" type="button" >
+            Okay
+          </button>
+        </motion.div>
+      </motion.div>
+    )}
+    {showError && (
+      <motion.div
+        initial={{ scale: 0.5, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        exit={{ scale: 0, opacity: 0 }}
+        transition={{ duration: 0.5 }}
+        className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50"
+      >
+        <motion.div
+          className="p-8 text-center rounded-lg shadow-lg bg-slate-700"
+          initial={{ y: -50 }}
+          animate={{ y: 0 }}
+          transition={{ duration: 0.3 }}
+        >
+          <div className="mb-4 text-4xl text-slate-500">×</div>
+          <h2 className="mb-2 text-2xl font-semibold text-white">Failed</h2>
+          <p className="text-white">Your data purchase was not successful!</p>
+          <button onClick={closeBTN}
+            className="relative w-full py-3 text-white transition duration-300 bg-yellow-400 rounded-lg top-4 hover:bg-yellow-500" type="button">
+            Okay
+          </button>
+        </motion.div>
+      </motion.div>
+    )}
+
+  </div>
+);
 }
