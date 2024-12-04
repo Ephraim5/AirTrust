@@ -80,99 +80,65 @@ export default function Mtn() {
   const handlePlanChange = (event) => {
     setSelectedPlan(parseInt(event.target.value));
   };
-  useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const reference = urlParams.get('reference');
-    const status = urlParams.get('status');
-    if (reference == undefined || reference == null || !reference) {
-      async function getDataVerify() {
-        const response = await axios.get(`https://api.paystack.co/transaction/verify/${reference}`, {
-          headers: {
-            Authorization: `Bearer sk_test_bc93e86b9ed69d83864fbc06b94a672e1316767c`,
-            'Content-Type': 'application/json',
-
-          },
-        });
-
-        const data = response.data;
-           setLastTransaction({...data})
-          if(status== true || status=="true"){
-                setShowSuccess(true)
-                setShowError(false)
-          }else{
-            setShowSuccess(false)
-            setShowError(true)
-          }
-
-    }
-    getDataVerify()
-
-
-  }else {
-    return;
+  const handleSubmit = () => {
+    // Get user from localStorage
+    const user = localStorage.getItem("user");
+  
+    // Use default email if no user data is found or email is missing
+    const email = user ? JSON.parse(user)?.email || "customer@gmail.com" : "customer@gmail.com";
+    console.log("Using email:", email);
+  
+    // Make the API call
+    fetch('https://airtrustbackend.onrender.com/paystack/', {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json; charset=UTF-8"
+      },
+      body: JSON.stringify({
+        amount: amount * 100, // Convert amount to Paystack's expected format
+        email: email // Use the extracted or default email
+      })
+    })
+      .then(response => {
+       
+        console.log("Response received, parsing JSON...");
+        return response.json(); // Parse JSON response
+      })
+      .then(data => {
+        console.log("Data received:", data);
+  
+        // Store information locally
+        setInformation(data);
+  
+        if (data.status === true) {
+          console.log(data)
+          console.log("Redirecting to Paystack authorization URL...");
+        } else {
+          console.warn("Payment initialization failed:", data.status);
+          alert("Failed to initialize payment. Please try again.");
+        }
+      })
+      .catch(error => {
+        console.error("Error occurred:", error);
+        alert("An error occurred while processing your request. Please try again later.");
+      })
+      .finally(()=>{
+        console.log(information)
+        if(information.status){
+          console.log("yes yes")
+          window.location.href.replace(window.location.href,information.data.authorization_url);
+          window.location.href= information.data.authorization_url;
+          console.log("done") 
+        }else{
+          window.location.href.replace(window.location.href,window.location.href+"success=true"); 
+        }
+      })
+  };
+  
+  const closeBTN = () => {
+    setShowError(false)
+    setShowSuccess(false)
   }
-  }, [])
-
-
-const handleSubmit = (props) => {
-  const user = localStorage.getItem("user");
-
-  const email = user ? JSON.parse(user)?.email || "customer@gmail.com" : "customer@gmail.com";
-  console.log("Using email:", email);
-
-  const callbackUrl = "https://airtrustbackend.onrender.com/payment-success"; // Replace with your actual callback URL
-
-  fetch('https://airtrustbackend.onrender.com/paystack/', { // Make sure to include the correct server URL
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json; charset=UTF-8"
-    },
-    body: JSON.stringify({
-      amount: amount * 100, // Convert to kobo
-      email: email,
-      callback_url: callbackUrl, // Include the callback URL here
-    })
-  })
-    .then(response => {
-
-      console.log("Response received, parsing JSON...");
-      return response.json(); // Parse JSON response
-    })
-    .then(data => {
-      console.log("Data received:", data);
-
-      // Store information locally
-      setInformation({ ...data, isItAirtime: isAirtime });
-
-      if (data.status === true) {
-        console.log(data)
-        console.log("Redirecting to Paystack authorization URL...");
-      } else {
-        console.warn("Payment initialization failed:", data.status);
-        alert("Failed to initialize payment. Please try again.");
-      }
-    })
-    .catch(error => {
-      console.error("Error occurred:", error);
-      alert("An error occurred while processing your request. Please try again later.");
-    })
-    .finally(() => {
-      console.log({ ...information, isItAirtime: isAirtime })
-      if (information.status) {
-        console.log("yes yes")
-        window.location.href.replace(window.location.href, information.data.authorization_url);
-        window.location.href = information.data.authorization_url;
-        console.log("done") //ll
-      } else {
-        window.location.href.replace(window.location.href, window.location.href + "?success=false");
-      }
-    })
-};
-
-const closeBTN = () => {
-  setShowError(false)
-  setShowSuccess(false)
-}
 
 if (isLoaded) {
   return (
