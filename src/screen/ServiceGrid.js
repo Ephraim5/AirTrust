@@ -29,9 +29,9 @@ const services = {
 };
 const handleSelect= (here)=>{
     if(window.location.href.includes("service") &&! window.location.href.includes("service#Network")){
-        window.location.href= window.location.href.replace("service",here)
+        window.location.href= window.location.href.replace("service",here.toLowerCase())
     }else{
-        window.location.href= window.location.href.replace("service#Network",here)
+        window.location.href= window.location.href.replace("service#Network",here.toLowerCase())
     }
 }
 
